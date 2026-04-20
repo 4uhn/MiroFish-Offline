@@ -2,7 +2,7 @@
   <div class="home-container">
     <!-- Top Navigation Bar -->
     <nav class="navbar" :style="s.navbar">
-      <div class="nav-brand" :style="s.navBrand">MIROFISH OFFLINE</div>
+      <div class="nav-brand" :style="s.navBrand">MIROFISH <span class="nav-brand-version">OFFLINE</span></div>
       <div class="nav-links" :style="s.navLinks">
         <a href="https://github.com/nikmcfly/MiroFish-Offline" target="_blank" class="github-link" :style="s.githubLink">
           Visit our Github <span>↗</span>
@@ -11,39 +11,8 @@
     </nav>
 
     <div class="main-content" :style="s.mainContent">
-      <!-- Hero Section -->
-      <section class="hero-section" :style="s.heroSection">
-        <div class="hero-left" :style="s.heroLeft">
-          <div class="tag-row" :style="s.tagRow">
-            <span class="orange-tag" :style="s.orangeTag">Offline Multi-Agent Simulation Engine</span>
-            <span class="version-text" :style="s.versionText">/ v0.1-preview</span>
-          </div>
-
-          <h1 class="main-title" :style="s.mainTitle">
-            Upload Any Document<br>
-            <span class="gradient-text" :style="s.gradientText">Predict What Happens Next</span>
-          </h1>
-
-          <div class="hero-desc" :style="s.heroDesc">
-            <p :style="s.heroDescP">
-              From a single document, <span :style="s.highlightBold">MiroFish Offline</span> extracts reality seeds and builds a parallel world of <span :style="s.highlightOrange">autonomous AI agents</span> — running entirely on your machine. Inject variables, observe emergent behavior, and find <span :style="s.highlightCode">"local optima"</span> in complex social dynamics.
-            </p>
-            <p class="slogan-text" :style="s.sloganText">
-              Your data never leaves your machine. The future is simulated locally<span :style="s.blinkingCursor">_</span>
-            </p>
-          </div>
-
-          <div class="decoration-square" :style="s.decorationSquare"></div>
-        </div>
-
-        <div class="hero-right" :style="s.heroRight">
-          <div class="logo-container" :style="s.logoContainer">
-            <img src="../assets/logo/MiroFish_logo_left.jpeg" alt="MiroFish Logo" :style="s.heroLogo" />
-          </div>
-          <button :style="s.scrollDownBtn" @click="scrollToBottom">↓</button>
-        </div>
-      </section>
-
+      <!-- Viewport-height centering wrapper -->
+      <div class="viewport-center">
       <!-- Dashboard: Two-Column Layout -->
       <section class="dashboard-section" :style="s.dashboardSection">
         <!-- Left Column: Status & Steps -->
@@ -57,27 +26,16 @@
             Local prediction engine on standby. Upload unstructured data to initialize a simulation.
           </p>
 
-          <div class="metrics-row" :style="s.metricsRow">
-            <div class="metric-card" :style="s.metricCard">
-              <div class="metric-value" :style="s.metricValue">Free</div>
-              <div class="metric-label" :style="s.metricLabel">Runs on your hardware</div>
-            </div>
-            <div class="metric-card" :style="s.metricCard">
-              <div class="metric-value" :style="s.metricValue">Private</div>
-              <div class="metric-label" :style="s.metricLabel">100% offline, no cloud</div>
-            </div>
-          </div>
-
           <div class="steps-container" :style="s.stepsContainer">
             <div class="steps-header" :style="s.stepsHeader">
                <span :style="s.diamondIcon">◇</span> Workflow Sequence
             </div>
-            <div :style="s.workflowList">
-              <div v-for="(step, i) in steps" :key="i" :style="s.workflowItem">
-                <span :style="s.stepNum">{{ step.num }}</span>
-                <div :style="s.stepInfo">
-                  <div :style="s.stepTitle">{{ step.title }}</div>
-                  <div :style="s.stepDesc">{{ step.desc }}</div>
+            <div class="workflow-list" :style="s.workflowList">
+              <div v-for="(step, i) in steps" :key="i" class="workflow-item" :style="s.workflowItem">
+                <span class="step-num" :style="s.stepNum">{{ step.num }}</span>
+                <div class="step-info" :style="s.stepInfo">
+                  <div class="step-title" :style="s.stepTitle">{{ step.title }}</div>
+                  <div class="step-desc" :style="s.stepDesc">{{ step.desc }}</div>
                 </div>
               </div>
             </div>
@@ -90,10 +48,11 @@
             <div :style="s.consoleSection">
               <div class="console-header" :style="s.consoleHeader">
                 <span>01 / Reality Seeds</span>
-                <span>Supported: PDF, MD, TXT</span>
+                <span>PDF · MD · TXT</span>
               </div>
               <div
                 :style="s.uploadZone"
+                :class="{ 'is-drag-over': isDragOver }"
                 @dragover.prevent="handleDragOver"
                 @dragleave.prevent="handleDragLeave"
                 @drop.prevent="handleDrop"
@@ -102,8 +61,8 @@
                 <input ref="fileInput" type="file" multiple accept=".pdf,.md,.txt" @change="handleFileSelect" style="display: none" :disabled="loading" />
                 <div v-if="files.length === 0" :style="s.uploadPlaceholder">
                   <div :style="s.uploadIcon">↑</div>
-                  <div :style="s.uploadTitle">Drag & drop files here</div>
-                  <div :style="s.uploadHint">or click to browse</div>
+                  <div :style="s.uploadTitle">Drop files to begin</div>
+                  <div :style="s.uploadHint">PDF · MD · TXT</div>
                 </div>
                 <div v-else :style="s.fileList">
                   <div v-for="(file, index) in files" :key="index" :style="s.fileItem">
@@ -137,6 +96,7 @@
           </div>
         </div>
       </section>
+      </div>
 
       <HistoryDatabase />
     </div>
@@ -144,6 +104,7 @@
 </template>
 
 <script setup>
+import './Home.css'
 import { ref, computed, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import HistoryDatabase from '../components/HistoryDatabase.vue'
@@ -152,69 +113,46 @@ const mono = 'JetBrains Mono, monospace'
 const sans = 'Space Grotesk, Noto Sans SC, system-ui, sans-serif'
 
 const s = reactive({
-  navbar: { height: '60px', background: '#000', color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 40px' },
-  navBrand: { fontFamily: mono, fontWeight: '800', letterSpacing: '1px', fontSize: '1.2rem' },
+  navbar: { height: '56px', background: '#111110', color: '#F5F0EB', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 40px' },
+  navBrand: { fontFamily: mono, fontWeight: '600', letterSpacing: '0.08em', fontSize: '0.85rem', color: '#F5F0EB', display: 'flex', alignItems: 'center', gap: '10px' },
   navLinks: { display: 'flex', alignItems: 'center' },
-  githubLink: { color: '#fff', textDecoration: 'none', fontFamily: mono, fontSize: '0.9rem', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '8px' },
-  mainContent: { maxWidth: '1400px', margin: '0 auto', padding: '60px 40px' },
-  heroSection: { display: 'flex', justifyContent: 'space-between', marginBottom: '80px', position: 'relative' },
-  heroLeft: { flex: '1', paddingRight: '60px' },
-  tagRow: { display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '25px', fontFamily: mono, fontSize: '0.8rem' },
-  orangeTag: { background: '#FF4500', color: '#fff', padding: '4px 10px', fontWeight: '700', letterSpacing: '1px', fontSize: '0.75rem' },
-  versionText: { color: '#999', fontWeight: '500', letterSpacing: '0.5px' },
-  mainTitle: { fontSize: '4.5rem', lineHeight: '1.2', fontWeight: '500', margin: '0 0 40px 0', letterSpacing: '-2px', color: '#000' },
-  gradientText: { background: 'linear-gradient(90deg, #000 0%, #444 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', display: 'inline-block' },
-  heroDesc: { fontSize: '1.05rem', lineHeight: '1.8', color: '#666', maxWidth: '640px', marginBottom: '50px', fontWeight: '400', textAlign: 'justify' },
-  heroDescP: { marginBottom: '1.5rem' },
-  highlightBold: { color: '#000', fontWeight: '700' },
-  highlightOrange: { color: '#FF4500', fontWeight: '700', fontFamily: mono },
-  highlightCode: { background: 'rgba(0,0,0,0.05)', padding: '2px 6px', borderRadius: '2px', fontFamily: mono, fontSize: '0.9em', color: '#000', fontWeight: '600' },
-  sloganText: { fontSize: '1.2rem', fontWeight: '520', color: '#000', letterSpacing: '1px', borderLeft: '3px solid #FF4500', paddingLeft: '15px', marginTop: '20px' },
-  blinkingCursor: { color: '#FF4500', fontWeight: '700' },
-  decorationSquare: { width: '16px', height: '16px', background: '#FF4500' },
-  heroRight: { flex: '0.8', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'flex-end' },
-  logoContainer: { width: '100%', display: 'flex', justifyContent: 'flex-end', paddingRight: '40px' },
-  heroLogo: { maxWidth: '500px', width: '100%' },
-  scrollDownBtn: { width: '40px', height: '40px', border: '1px solid #E5E5E5', background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#FF4500', fontSize: '1.2rem' },
-  dashboardSection: { display: 'flex', gap: '60px', borderTop: '1px solid #E5E5E5', paddingTop: '60px', alignItems: 'flex-start' },
+  githubLink: { color: '#8C8580', textDecoration: 'none', fontFamily: mono, fontSize: '0.75rem', fontWeight: '400', display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', border: '1px solid transparent', letterSpacing: '0.04em' },
+  mainContent: { maxWidth: '1400px', margin: '0 auto' },
+  dashboardSection: { display: 'flex', gap: '52px', paddingTop: '0', alignItems: 'flex-start', borderTop: 'none' },
   leftPanel: { flex: '0.8', display: 'flex', flexDirection: 'column' },
-  panelHeader: { fontFamily: mono, fontSize: '0.8rem', color: '#999', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px' },
-  statusDot: { color: '#FF4500', fontSize: '0.8rem' },
-  sectionTitle: { fontSize: '2rem', fontWeight: '520', margin: '0 0 15px 0' },
-  sectionDesc: { color: '#666', marginBottom: '25px', lineHeight: '1.6' },
-  metricsRow: { display: 'flex', gap: '20px', marginBottom: '15px' },
-  metricCard: { border: '1px solid #E5E5E5', padding: '20px 30px', minWidth: '150px' },
-  metricValue: { fontFamily: mono, fontSize: '1.8rem', fontWeight: '520', marginBottom: '5px' },
-  metricLabel: { fontSize: '0.85rem', color: '#999' },
-  stepsContainer: { border: '1px solid #E5E5E5', padding: '30px', position: 'relative' },
-  stepsHeader: { fontFamily: mono, fontSize: '0.8rem', color: '#999', marginBottom: '25px', display: 'flex', alignItems: 'center', gap: '8px' },
-  diamondIcon: { fontSize: '1.2rem', lineHeight: '1' },
-  workflowList: { display: 'flex', flexDirection: 'column', gap: '20px' },
-  workflowItem: { display: 'flex', alignItems: 'flex-start', gap: '20px' },
-  stepNum: { fontFamily: mono, fontWeight: '700', color: '#000', opacity: '0.3' },
+  panelHeader: { fontFamily: mono, fontSize: '0.7rem', color: '#9C948A', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '12px', letterSpacing: '0.05em' },
+  statusDot: { color: '#4A7A62', fontSize: '0.75rem' },
+  sectionTitle: { fontSize: '1.8rem', fontWeight: '500', margin: '0 0 10px 0', letterSpacing: '-0.02em', color: '#1A1816' },
+  sectionDesc: { color: '#6B6560', marginBottom: '28px', lineHeight: '1.65', fontSize: '0.9rem' },
+  stepsContainer: { background: '#F4F2EF', padding: '24px', position: 'relative' },
+  stepsHeader: { fontFamily: mono, fontSize: '0.7rem', color: '#9C948A', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px', letterSpacing: '0.06em', textTransform: 'uppercase' },
+  diamondIcon: { fontSize: '1rem', lineHeight: '1' },
+  workflowList: { display: 'flex', flexDirection: 'column', gap: '16px' },
+  workflowItem: { display: 'flex', alignItems: 'flex-start', gap: '16px', position: 'relative' },
+  stepNum: { fontFamily: mono, fontWeight: '600', color: '#1A1816', fontSize: '0.7rem', paddingTop: '2px', minWidth: '20px' },
   stepInfo: { flex: '1' },
-  stepTitle: { fontWeight: '520', fontSize: '1rem', marginBottom: '4px' },
-  stepDesc: { fontSize: '0.85rem', color: '#666' },
+  stepTitle: { fontWeight: '600', fontSize: '0.875rem', marginBottom: '2px', color: '#1A1816' },
+  stepDesc: { fontSize: '0.8rem', color: '#9C948A', lineHeight: '1.5' },
   rightPanel: { flex: '1.2', display: 'flex', flexDirection: 'column' },
-  consoleBox: { border: '1px solid #CCC', padding: '8px' },
-  consoleSection: { padding: '20px' },
-  consoleHeader: { display: 'flex', justifyContent: 'space-between', marginBottom: '15px', fontFamily: mono, fontSize: '0.75rem', color: '#666' },
-  uploadZone: { border: '1px dashed #CCC', height: '200px', overflowY: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', background: '#FAFAFA' },
+  consoleBox: { border: '1px solid #C8C0B8', background: '#FFFFFF' },
+  consoleSection: { padding: '20px 20px 16px' },
+  consoleHeader: { display: 'flex', justifyContent: 'space-between', marginBottom: '12px', fontFamily: mono, fontSize: '0.7rem', color: '#9C948A', letterSpacing: '0.04em' },
+  uploadZone: { border: '1.5px dashed #C8C0B8', height: '160px', overflowY: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', background: '#F4F2EF', transition: 'border-color 150ms ease, background 150ms ease' },
   uploadPlaceholder: { textAlign: 'center' },
-  uploadIcon: { width: '40px', height: '40px', border: '1px solid #DDD', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 15px', color: '#999' },
-  uploadTitle: { fontWeight: '500', fontSize: '0.9rem', marginBottom: '5px' },
-  uploadHint: { fontFamily: mono, fontSize: '0.75rem', color: '#999' },
-  fileList: { width: '100%', padding: '15px', display: 'flex', flexDirection: 'column', gap: '10px' },
-  fileItem: { display: 'flex', alignItems: 'center', background: '#fff', padding: '8px 12px', border: '1px solid #EEE', fontFamily: mono, fontSize: '0.85rem' },
-  fileName: { flex: '1', margin: '0 10px' },
-  removeBtn: { background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem', color: '#999' },
-  consoleDivider: { display: 'flex', alignItems: 'center', margin: '10px 0', borderTop: '1px solid #EEE' },
-  consoleDividerText: { padding: '0 15px', fontFamily: mono, fontSize: '0.7rem', color: '#BBB', letterSpacing: '1px' },
-  inputWrapper: { position: 'relative', border: '1px solid #DDD', background: '#FAFAFA' },
-  codeInput: { width: '100%', border: 'none', background: 'transparent', padding: '20px', fontFamily: mono, fontSize: '0.9rem', lineHeight: '1.6', resize: 'vertical', outline: 'none', minHeight: '150px' },
-  modelBadge: { position: 'absolute', bottom: '10px', right: '15px', fontFamily: mono, fontSize: '0.7rem', color: '#AAA' },
-  btnSection: { padding: '0 20px 20px' },
-  startEngineBtn: { width: '100%', background: '#000', color: '#fff', border: 'none', padding: '20px', fontFamily: mono, fontWeight: '700', fontSize: '1.1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', letterSpacing: '1px' },
+  uploadIcon: { width: '34px', height: '34px', border: '1px solid #DDD8D0', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px', color: '#9C948A', background: '#fff' },
+  uploadTitle: { fontWeight: '500', fontSize: '0.875rem', marginBottom: '4px', color: '#1A1816' },
+  uploadHint: { fontFamily: mono, fontSize: '0.7rem', color: '#B0A89E', letterSpacing: '0.04em' },
+  fileList: { width: '100%', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' },
+  fileItem: { display: 'flex', alignItems: 'center', background: '#fff', padding: '7px 10px', border: '1px solid #EAE6E0', fontFamily: mono, fontSize: '0.8rem' },
+  fileName: { flex: '1', margin: '0 10px', color: '#1A1816' },
+  removeBtn: { background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', color: '#9C948A' },
+  consoleDivider: { display: 'flex', alignItems: 'center', borderTop: '1px solid #EAE6E0', padding: '8px 20px', margin: '0' },
+  consoleDividerText: { fontFamily: mono, fontSize: '0.65rem', color: '#B0A89E', letterSpacing: '0.08em', textTransform: 'uppercase' },
+  inputWrapper: { position: 'relative', border: '1px solid #DDD8D0', background: '#F4F2EF' },
+  codeInput: { width: '100%', border: 'none', background: 'transparent', padding: '16px', fontFamily: mono, fontSize: '0.875rem', lineHeight: '1.7', resize: 'none', outline: 'none', minHeight: '140px', color: '#1A1816' },
+  modelBadge: { position: 'absolute', bottom: '10px', right: '12px', fontFamily: mono, fontSize: '0.65rem', color: '#B0A89E', background: '#EDE9E4', padding: '2px 6px', letterSpacing: '0.03em' },
+  btnSection: { padding: '0 16px 16px' },
+  startEngineBtn: { width: '100%', background: '#1A1816', color: '#F5F0EB', border: '1px solid #2A2826', padding: '18px 24px', fontFamily: mono, fontWeight: '600', fontSize: '0.875rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', letterSpacing: '0.08em', transition: 'background 150ms ease, border-color 150ms ease' },
 })
 
 const steps = [
@@ -251,8 +189,6 @@ const addFiles = (newFiles) => {
 }
 
 const removeFile = (index) => { files.value.splice(index, 1) }
-
-const scrollToBottom = () => { window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }) }
 
 const startSimulation = () => {
   if (!canSubmit.value || loading.value) return

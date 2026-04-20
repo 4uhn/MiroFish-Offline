@@ -539,10 +539,27 @@ class SimulationRunner:
                     pass
                 state.error = f"进程退出码: {exit_code}, 错误: {error_info}"
                 logger.error(f"模拟失败: {simulation_id}, error={state.error}")
-            
+
             state.twitter_running = False
             state.reddit_running = False
             cls._save_run_state(state)
+
+            # Also update state.json to reflect completion/failure
+            try:
+                state_file = os.path.join(sim_dir, "state.json")
+                if os.path.exists(state_file):
+                    with open(state_file, 'r', encoding='utf-8') as f:
+                        state_data = json.load(f)
+                    state_data['status'] = 'completed' if exit_code == 0 else 'failed'
+                    state_data['updated_at'] = datetime.now().isoformat()
+                    if exit_code == 0:
+                        state_data['twitter_status'] = 'completed'
+                        state_data['reddit_status'] = 'completed'
+                    with open(state_file, 'w', encoding='utf-8') as f:
+                        json.dump(state_data, f, indent=2, ensure_ascii=False)
+                    logger.info(f"Updated state.json status: {simulation_id}")
+            except Exception as state_err:
+                logger.warning(f"Failed to update state.json: {simulation_id}, error={state_err}")
             
         except Exception as e:
             logger.error(f"监控线程异常: {simulation_id}, error={str(e)}")

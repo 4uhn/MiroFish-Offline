@@ -63,18 +63,100 @@ class FilteredEntities:
         }
 
 
+
+
+# Entity types that represent locations, objects, or abstract concepts — NOT social media agents.
+# These are excluded from simulation agent generation even if the ontology includes them.
+NON_AGENT_ENTITY_TYPES = {
+    "location", "place", "address", "postalcode", "postcode", "zipcode",
+    "building", "facility", "venue", "residence", "resident", "hall",
+    "street", "road", "area", "district", "region", "city", "country",
+    "campus", "dormitory", "clinic", "ward",
+    "event", "incident", "topic", "concept", "policy", "legislation",
+    "date", "time", "period", "timeline",
+    "document", "report", "publication", "article",
+    "product", "service", "technology", "tool",
+    "disease", "condition", "symptom", "treatment", "vaccine",
+}
+
+
 class EntityReader:
     """
-    实体读取与过滤服务 (via GraphStorage / Neo4j)
+    Entity reader and filter service (via GraphStorage / Neo4j)
 
-    主要功能：
-    1. 从图谱读取所有节点
-    2. 筛选出符合预定义实体类型的节点（Labels不只是Entity的节点）
-    3. 获取每个实体的相关边和关联节点信息
+    Main functions:
+    1. Read all nodes from the knowledge graph
+    2. Filter nodes that have defined entity types (custom labels beyond just "Entity")
+    3. Get related edges and associated node info for each entity
     """
 
     def __init__(self, storage: GraphStorage):
         self.storage = storage
+
+    @staticmethod
+    def _is_garbage_entity_name(name: str) -> bool:
+        """Heuristic check: is this entity name a fragment, generic word, or non-entity?"""
+        import re
+        stripped = name.strip()
+        # Too short (single word under 3 chars) or empty
+        if len(stripped) < 2:
+            return True
+        # Pure number or year (e.g., "2015", "100")
+        if re.match(r'^\d+$', stripped):
+            return True
+        # Generic common words that are not named entities
+        GENERIC_WORDS = {
+            "staff", "residents", "students", "people", "young people",
+            "children", "adults", "families", "parents", "teachers",
+            "workers", "members", "visitors", "patients", "users",
+            "public", "community", "population", "audience", "group",
+            "friday", "saturday", "sunday", "monday", "tuesday",
+            "wednesday", "thursday", "weekend", "morning", "evening",
+        }
+        if stripped.lower() in GENERIC_WORDS:
+            return True
+        # Single common word (not a proper noun) — allow if capitalized like a name
+        if len(stripped.split()) == 1 and stripped.islower():
+            return True
+        # Country/region names used as standalone entities (too broad)
+        OVERLY_BROAD = {"uk", "us", "usa", "eu", "china", "india", "france", "germany", "england", "scotland", "wales"}
+        if stripped.lower() in OVERLY_BROAD:
+            return True
+        return False
+
+    @staticmethod
+    def _normalize_name_for_dedup(name: str) -> str:
+        """Normalize entity name for deduplication comparison."""
+        import re
+        n = name.lower().strip()
+        # Remove parenthetical suffixes like (NHS), (LocalGovernment), (University), etc.
+        n = re.sub(r'\s*\([^)]*\)\s*$', '', n)
+        # Remove common prefixes/suffixes
+        n = re.sub(r'^(the|a|an)\s+', '', n)
+        # Remove punctuation
+        n = re.sub(r'[^\w\s]', '', n)
+        # Collapse whitespace
+        n = re.sub(r'\s+', ' ', n).strip()
+        return n
+
+    @staticmethod
+    def _looks_like_location(name: str) -> bool:
+        """Heuristic check: does this entity name look like a location/address rather than a person/org?"""
+        import re
+        # UK/US postcode pattern (e.g. "CT1 3NG", "Canterbury CT2 7NZ")
+        if re.search(r'\b[A-Z]{1,2}\d{1,2}\s*\d[A-Z]{2}\b', name):
+            return True
+        # US zip code
+        if re.search(r'\b\d{5}(-\d{4})?\b', name) and len(name) < 20:
+            return True
+        # Pure street/road names (but not organisations with these words)
+        if re.search(r'\b(Road|Street|Lane|Avenue|Drive|Close|Way|Crescent|Place|Terrace)\b', name, re.IGNORECASE):
+            if not re.search(r'\b(Council|Authority|Agency|Foundation|Institute|Hospital|University|College|School)\b', name, re.IGNORECASE):
+                return True
+        # Building/residence names that end with typical building suffixes
+        if re.search(r'\b(Halls?\s+of\s+Residence|Building|Campus|Dormitory|Clinic|Hall)\s*$', name, re.IGNORECASE):
+            return True
+        return False
 
     def get_all_nodes(self, graph_id: str) -> List[Dict[str, Any]]:
         """
@@ -158,18 +240,18 @@ class EntityReader:
         # 筛选符合条件的实体
         filtered_entities = []
         entity_types_found: Set[str] = set()
+        _seen_names: Dict[str, str] = {}  # normalized_name -> original_name for deduplication
 
         for node in all_nodes:
             labels = node.get("labels", [])
 
-            # 筛选逻辑：Labels必须包含除"Entity"和"Node"之外的标签
+            # Filter: must have custom labels beyond just "Entity"/"Node"
             custom_labels = [la for la in labels if la not in ["Entity", "Node"]]
 
             if not custom_labels:
-                # 只有默认标签，跳过
                 continue
 
-            # 如果指定了预定义类型，检查是否匹配
+            # If specific types requested, check for match
             if defined_entity_types:
                 matching_labels = [la for la in custom_labels if la in defined_entity_types]
                 if not matching_labels:
@@ -177,6 +259,63 @@ class EntityReader:
                 entity_type = matching_labels[0]
             else:
                 entity_type = custom_labels[0]
+
+            # Skip non-agent entity types (locations, objects, concepts, etc.)
+            if entity_type.lower() in NON_AGENT_ENTITY_TYPES:
+                logger.debug(f"Skipping non-agent entity: {node.get('name', '?')} (type: {entity_type})")
+                continue
+
+            # Skip entities whose names look like addresses/postcodes
+            name = node.get("name", "")
+            if self._looks_like_location(name):
+                logger.debug(f"Skipping location-like entity: {name} (type: {entity_type})")
+                continue
+
+            # Skip garbage entity names (fragments, generic words, numbers)
+            if self._is_garbage_entity_name(name):
+                logger.debug(f"Skipping garbage entity name: {name} (type: {entity_type})")
+                continue
+
+            # Deduplication: skip if a similar entity name was already added
+            dedup_key = self._normalize_name_for_dedup(name)
+            if dedup_key in _seen_names:
+                existing = _seen_names[dedup_key]
+                # Keep the one with the longer/more specific name
+                if len(name) <= len(existing):
+                    logger.debug(f"Skipping duplicate entity: '{name}' (already have '{existing}')")
+                    continue
+                else:
+                    # Replace the shorter one — remove it from filtered_entities
+                    filtered_entities = [e for e in filtered_entities if self._normalize_name_for_dedup(e.name) != dedup_key]
+                    logger.debug(f"Replacing entity '{existing}' with longer name '{name}'")
+            _seen_names[dedup_key] = name
+
+            # Also check if name is a substring/acronym of an already-seen entity
+            skip_as_acronym = False
+            for seen_key, seen_name in list(_seen_names.items()):
+                if seen_key == dedup_key:
+                    continue
+                # Check if current name is an acronym of a seen name (e.g., "JCVI" vs "Joint Committee on Vaccination and Immunisation")
+                if len(name) <= 6 and name.isupper():
+                    seen_words = seen_name.split()
+                    acronym = ''.join(w[0] for w in seen_words if w[0].isupper())
+                    if name.upper() == acronym.upper():
+                        logger.debug(f"Skipping acronym entity '{name}' (already have '{seen_name}')")
+                        skip_as_acronym = True
+                        break
+                # Check reverse: if a seen name is an acronym of current name
+                if len(seen_name) <= 6 and seen_name.isupper():
+                    current_words = name.split()
+                    acronym = ''.join(w[0] for w in current_words if w[0].isupper())
+                    if seen_name.upper() == acronym.upper():
+                        # Remove the acronym, keep the full name
+                        filtered_entities = [e for e in filtered_entities if e.name != seen_name]
+                        del _seen_names[seen_key]
+                        _seen_names[dedup_key] = name
+                        logger.debug(f"Replacing acronym entity '{seen_name}' with full name '{name}'")
+                        break
+            if skip_as_acronym:
+                continue
 
             entity_types_found.add(entity_type)
 

@@ -8,9 +8,12 @@ import traceback
 import threading
 from flask import request, jsonify, send_file
 
+from flask import current_app
+
 from . import report_bp
 from ..config import Config
 from ..services.report_agent import ReportAgent, ReportManager, ReportStatus
+from ..services.graph_tools import GraphToolsService
 from ..services.simulation_manager import SimulationManager
 from ..models.project import ProjectManager
 from ..models.task import TaskManager, TaskStatus
@@ -105,6 +108,15 @@ def generate_report():
                 "error": "缺少模拟需求描述"
             }), 400
         
+        # 获取 GraphStorage（在请求上下文中，线程启动前）
+        storage = current_app.extensions.get('neo4j_storage')
+        if not storage:
+            return jsonify({
+                "success": False,
+                "error": "Neo4j not connected — check Neo4j service"
+            }), 503
+        graph_tools = GraphToolsService(storage=storage)
+
         # 提前生成 report_id，以便立即返回给前端
         import uuid
         report_id = f"report_{uuid.uuid4().hex[:12]}"
@@ -134,7 +146,8 @@ def generate_report():
                 agent = ReportAgent(
                     graph_id=graph_id,
                     simulation_id=simulation_id,
-                    simulation_requirement=simulation_requirement
+                    simulation_requirement=simulation_requirement,
+                    graph_tools=graph_tools
                 )
                 
                 # 进度回调
@@ -536,11 +549,20 @@ def chat_with_report_agent():
         
         simulation_requirement = project.simulation_requirement or ""
         
-        # 创建Agent并进行对话
+        # 获取 GraphStorage 并创建Agent
+        storage = current_app.extensions.get('neo4j_storage')
+        if not storage:
+            return jsonify({
+                "success": False,
+                "error": "Neo4j not connected — check Neo4j service"
+            }), 503
+        graph_tools = GraphToolsService(storage=storage)
+
         agent = ReportAgent(
             graph_id=graph_id,
             simulation_id=simulation_id,
-            simulation_requirement=simulation_requirement
+            simulation_requirement=simulation_requirement,
+            graph_tools=graph_tools
         )
         
         result = agent.chat(message=message, chat_history=chat_history)

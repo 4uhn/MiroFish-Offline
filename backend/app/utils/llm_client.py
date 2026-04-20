@@ -42,6 +42,10 @@ class LLMClient:
 
     def _is_ollama(self) -> bool:
         """Check if we're talking to an Ollama server."""
+        provider = os.environ.get('LLM_PROVIDER', 'ollama').lower()
+        if provider == 'ollama':
+            return True
+        # Fallback: detect by port for backwards compatibility
         return '11434' in (self.base_url or '')
 
     def chat(
@@ -73,15 +77,17 @@ class LLMClient:
         if response_format:
             kwargs["response_format"] = response_format
 
-        # For Ollama: pass num_ctx via extra_body to prevent prompt truncation
-        if self._is_ollama() and self._num_ctx:
-            kwargs["extra_body"] = {
-                "options": {"num_ctx": self._num_ctx}
-            }
+        # For Ollama: pass num_ctx and disable thinking (qwen3 compatibility)
+        if self._is_ollama():
+            extra = kwargs.get("extra_body", {})
+            if self._num_ctx:
+                extra.setdefault("options", {})["num_ctx"] = self._num_ctx
+            extra["think"] = False
+            kwargs["extra_body"] = extra
 
         response = self.client.chat.completions.create(**kwargs)
-        content = response.choices[0].message.content
-        # 部分模型（如MiniMax M2.5）会在content中包含<think>思考内容，需要移除
+        content = response.choices[0].message.content or ""
+        # Strip <think> tags (some models embed thinking in content)
         content = re.sub(r'<think>[\s\S]*?</think>', '', content).strip()
         return content
 

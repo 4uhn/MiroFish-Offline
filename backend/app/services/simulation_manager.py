@@ -234,7 +234,7 @@ class SimulationManager:
         defined_entity_types: Optional[List[str]] = None,
         use_llm_for_profiles: bool = True,
         progress_callback: Optional[callable] = None,
-        parallel_profile_count: int = 3,
+        parallel_profile_count: int = 2,
         storage: 'GraphStorage' = None,
     ) -> SimulationState:
         """
@@ -302,7 +302,18 @@ class SimulationManager:
                 state.error = "没有找到符合条件的实体，请检查图谱是否正确构建"
                 self._save_simulation_state(state)
                 return state
-            
+
+            # Cap entities to avoid excessive LLM calls on low-RAM systems
+            MAX_AGENT_ENTITIES = int(os.environ.get('MAX_AGENT_ENTITIES', '15'))
+            if len(filtered.entities) > MAX_AGENT_ENTITIES:
+                logger.info(
+                    f"Capping entities from {len(filtered.entities)} to {MAX_AGENT_ENTITIES} "
+                    f"(set MAX_AGENT_ENTITIES env var to override)"
+                )
+                filtered.entities = filtered.entities[:MAX_AGENT_ENTITIES]
+                filtered.filtered_count = len(filtered.entities)
+                state.entities_count = filtered.filtered_count
+
             # ========== 阶段2: 生成Agent Profile ==========
             total_entities = len(filtered.entities)
             

@@ -184,7 +184,9 @@ TWITTER_ACTIONS = [
     ActionType.QUOTE_POST,
 ]
 
-# Reddit可用动作（不包含INTERVIEW，INTERVIEW只能通过ManualAction手动触发）
+# Reddit available actions (excluding INTERVIEW, which can only be triggered via ManualAction)
+# Trimmed list: removed SEARCH_POSTS, SEARCH_USER, TREND, REFRESH, MUTE to favor
+# interaction-heavy actions (comments, likes, follows) over passive browsing.
 REDDIT_ACTIONS = [
     ActionType.LIKE_POST,
     ActionType.DISLIKE_POST,
@@ -192,13 +194,8 @@ REDDIT_ACTIONS = [
     ActionType.CREATE_COMMENT,
     ActionType.LIKE_COMMENT,
     ActionType.DISLIKE_COMMENT,
-    ActionType.SEARCH_POSTS,
-    ActionType.SEARCH_USER,
-    ActionType.TREND,
-    ActionType.REFRESH,
     ActionType.DO_NOTHING,
     ActionType.FOLLOW,
-    ActionType.MUTE,
 ]
 
 
@@ -1031,9 +1028,20 @@ def create_model(config: Dict[str, Any], use_boost: bool = False):
     
     print(f"{config_label} model={llm_model}, base_url={llm_base_url[:40] if llm_base_url else '默认'}...")
     
+    # Build model config — disable thinking for qwen3 models (thinking
+    # consumes token budget and breaks tool calling with low max_tokens)
+    model_config = {}
+    provider = os.environ.get("LLM_PROVIDER", "ollama").lower()
+    if provider == "ollama":
+        model_config["extra_body"] = {
+            "think": False,
+            "options": {"num_ctx": int(os.environ.get("OLLAMA_NUM_CTX", "8192"))},
+        }
+
     return ModelFactory.create(
         model_platform=ModelPlatformType.OPENAI,
         model_type=llm_model,
+        model_config_dict=model_config if model_config else None,
     )
 
 
@@ -1043,42 +1051,58 @@ def get_active_agents_for_round(
     current_hour: int,
     round_num: int
 ) -> List:
-    """根据时间和配置决定本轮激活哪些Agent"""
+    """Select which agents are active this round based on time-of-day and agent config.
+
+    Guarantees at least 1 agent per round to avoid empty rounds.
+    """
     time_config = config.get("time_config", {})
     agent_configs = config.get("agent_configs", [])
-    
+
     base_min = time_config.get("agents_per_hour_min", 5)
     base_max = time_config.get("agents_per_hour_max", 20)
-    
-    peak_hours = time_config.get("peak_hours", [9, 10, 11, 14, 15, 20, 21, 22])
+
+    peak_hours = time_config.get("peak_hours", [18, 19, 20, 21])
     off_peak_hours = time_config.get("off_peak_hours", [0, 1, 2, 3, 4, 5])
-    
+    morning_hours = time_config.get("morning_hours", [6, 7, 8])
+    work_hours = time_config.get("work_hours", list(range(9, 18)))
+
     if current_hour in peak_hours:
         multiplier = time_config.get("peak_activity_multiplier", 1.5)
     elif current_hour in off_peak_hours:
-        multiplier = time_config.get("off_peak_activity_multiplier", 0.3)
+        multiplier = time_config.get("off_peak_activity_multiplier", 0.15)
+    elif current_hour in morning_hours:
+        multiplier = time_config.get("morning_activity_multiplier", 0.4)
+    elif current_hour in work_hours:
+        multiplier = time_config.get("work_activity_multiplier", 0.7)
     else:
-        multiplier = 1.0
-    
-    target_count = int(random.uniform(base_min, base_max) * multiplier)
-    
+        multiplier = 0.5  # Night hours
+
+    target_count = max(1, int(random.uniform(base_min, base_max) * multiplier))
+
+    # Build candidate pool: agents whose active_hours include this hour, filtered by activity_level
     candidates = []
+    all_agent_ids = []
     for cfg in agent_configs:
         agent_id = cfg.get("agent_id", 0)
         active_hours = cfg.get("active_hours", list(range(8, 23)))
         activity_level = cfg.get("activity_level", 0.5)
-        
+        all_agent_ids.append(agent_id)
+
         if current_hour not in active_hours:
             continue
-        
+
         if random.random() < activity_level:
             candidates.append(agent_id)
-    
+
+    # Guarantee at least 1 candidate — pick a random agent if pool is empty
+    if not candidates and all_agent_ids:
+        candidates = [random.choice(all_agent_ids)]
+
     selected_ids = random.sample(
-        candidates, 
+        candidates,
         min(target_count, len(candidates))
     ) if candidates else []
-    
+
     active_agents = []
     for agent_id in selected_ids:
         try:
@@ -1086,7 +1110,7 @@ def get_active_agents_for_round(
             active_agents.append((agent_id, agent))
         except Exception:
             pass
-    
+
     return active_agents
 
 
@@ -1181,7 +1205,10 @@ async def run_twitter_simulation(
         initial_actions = {}
         for post in initial_posts:
             agent_id = post.get("poster_agent_id", 0)
-            content = post.get("content", "")
+            content = post.get("content", "").strip()
+            if not content:
+                log_info(f"Skipping empty initial post for agent {agent_id}")
+                continue
             try:
                 agent = result.env.agent_graph.get_agent(agent_id)
                 initial_actions[agent] = ManualAction(
@@ -1205,88 +1232,107 @@ async def run_twitter_simulation(
         if initial_actions:
             await result.env.step(initial_actions)
             log_info(f"已发布 {len(initial_actions)} 条初始帖子")
-    
+
+    # Advance last_rowid past seed posts so they aren't re-read in round 1
+    _, last_rowid = fetch_new_actions_from_db(db_path, last_rowid, agent_names)
+
     # 记录 round 0 结束
     if action_logger:
         action_logger.log_round_end(0, initial_action_count)
-    
-    # 主模拟循环
+
+    # Main simulation loop
     time_config = config.get("time_config", {})
     total_hours = time_config.get("total_simulation_hours", 72)
     minutes_per_round = time_config.get("minutes_per_round", 30)
     total_rounds = (total_hours * 60) // minutes_per_round
-    
+    # Start the simulation at a configurable hour (default 8 AM) so early rounds aren't dead
+    start_hour = time_config.get("start_hour", 8)
+
     # 如果指定了最大轮数，则截断
     if max_rounds is not None and max_rounds > 0:
         original_rounds = total_rounds
         total_rounds = min(total_rounds, max_rounds)
         if total_rounds < original_rounds:
             log_info(f"轮数已截断: {original_rounds} -> {total_rounds} (max_rounds={max_rounds})")
-    
+
     start_time = datetime.now()
-    
+    # Track seen post content to prevent verbatim duplicate posts across rounds
+    _seen_post_content: set = set()
+
     for round_num in range(total_rounds):
-        # 检查是否收到退出信号
         if _shutdown_event and _shutdown_event.is_set():
             if main_logger:
-                main_logger.info(f"收到退出信号，在第 {round_num + 1} 轮停止模拟")
+                main_logger.info(f"Received shutdown signal, stopping at round {round_num + 1}")
             break
-        
+
         simulated_minutes = round_num * minutes_per_round
-        simulated_hour = (simulated_minutes // 60) % 24
+        simulated_hour = (start_hour + simulated_minutes // 60) % 24
         simulated_day = simulated_minutes // (60 * 24) + 1
-        
+
         active_agents = get_active_agents_for_round(
             result.env, config, simulated_hour, round_num
         )
-        
+
         # 无论是否有活跃agent，都记录round开始
         if action_logger:
             action_logger.log_round_start(round_num + 1, simulated_hour)
-        
+
         if not active_agents:
             # 没有活跃agent时也记录round结束（actions_count=0）
             if action_logger:
                 action_logger.log_round_end(round_num + 1, 0)
             continue
-        
+
         actions = {agent: LLMAction() for _, agent in active_agents}
         await result.env.step(actions)
-        
+
         # 从数据库获取实际执行的动作并记录
         actual_actions, last_rowid = fetch_new_actions_from_db(
             db_path, last_rowid, agent_names
         )
-        
+
         round_action_count = 0
         for action_data in actual_actions:
+            # Skip empty or duplicate content posts/comments
+            action_type = action_data.get('action_type', '')
+            action_args = action_data.get('action_args', {})
+            if action_type in ('CREATE_POST', 'CREATE_COMMENT', 'QUOTE_POST'):
+                content = action_args.get('content', '').strip()
+                if not content:
+                    continue
+                # Deduplicate: skip verbatim repeated posts
+                if action_type == 'CREATE_POST':
+                    content_key = content[:200].lower()  # Compare first 200 chars
+                    if content_key in _seen_post_content:
+                        continue
+                    _seen_post_content.add(content_key)
             if action_logger:
                 action_logger.log_action(
                     round_num=round_num + 1,
                     agent_id=action_data['agent_id'],
                     agent_name=action_data['agent_name'],
-                    action_type=action_data['action_type'],
-                    action_args=action_data['action_args']
+                    action_type=action_type,
+                    action_args=action_args
                 )
                 total_actions += 1
                 round_action_count += 1
-        
+
         if action_logger:
             action_logger.log_round_end(round_num + 1, round_action_count)
-        
+
         if (round_num + 1) % 20 == 0:
             progress = (round_num + 1) / total_rounds * 100
             log_info(f"Day {simulated_day}, {simulated_hour:02d}:00 - Round {round_num + 1}/{total_rounds} ({progress:.1f}%)")
-    
+
     # 注意：不关闭环境，保留给Interview使用
-    
+
     if action_logger:
         action_logger.log_simulation_end(total_rounds, total_actions)
-    
+
     result.total_actions = total_actions
     elapsed = (datetime.now() - start_time).total_seconds()
     log_info(f"模拟循环完成! 耗时: {elapsed:.1f}秒, 总动作: {total_actions}")
-    
+
     return result
 
 
@@ -1404,16 +1450,21 @@ async def run_reddit_simulation(
         if initial_actions:
             await result.env.step(initial_actions)
             log_info(f"已发布 {len(initial_actions)} 条初始帖子")
-    
+
+    # Advance last_rowid past seed posts so they aren't re-read in round 1
+    _, last_rowid = fetch_new_actions_from_db(db_path, last_rowid, agent_names)
+
     # 记录 round 0 结束
     if action_logger:
         action_logger.log_round_end(0, initial_action_count)
-    
-    # 主模拟循环
+
+    # Main simulation loop
     time_config = config.get("time_config", {})
     total_hours = time_config.get("total_simulation_hours", 72)
     minutes_per_round = time_config.get("minutes_per_round", 30)
     total_rounds = (total_hours * 60) // minutes_per_round
+    # Start the simulation at a configurable hour (default 8 AM) so early rounds aren't dead
+    start_hour = time_config.get("start_hour", 8)
     
     # 如果指定了最大轮数，则截断
     if max_rounds is not None and max_rounds > 0:
@@ -1423,16 +1474,17 @@ async def run_reddit_simulation(
             log_info(f"轮数已截断: {original_rounds} -> {total_rounds} (max_rounds={max_rounds})")
     
     start_time = datetime.now()
-    
+    # Track seen post content to prevent verbatim duplicate posts across rounds
+    _seen_post_content: set = set()
+
     for round_num in range(total_rounds):
-        # 检查是否收到退出信号
         if _shutdown_event and _shutdown_event.is_set():
             if main_logger:
-                main_logger.info(f"收到退出信号，在第 {round_num + 1} 轮停止模拟")
+                main_logger.info(f"Received shutdown signal, stopping at round {round_num + 1}")
             break
         
         simulated_minutes = round_num * minutes_per_round
-        simulated_hour = (simulated_minutes // 60) % 24
+        simulated_hour = (start_hour + simulated_minutes // 60) % 24
         simulated_day = simulated_minutes // (60 * 24) + 1
         
         active_agents = get_active_agents_for_round(
@@ -1459,13 +1511,26 @@ async def run_reddit_simulation(
         
         round_action_count = 0
         for action_data in actual_actions:
+            # Skip empty or duplicate content posts/comments
+            action_type = action_data.get('action_type', '')
+            action_args = action_data.get('action_args', {})
+            if action_type in ('CREATE_POST', 'CREATE_COMMENT', 'QUOTE_POST'):
+                content = action_args.get('content', '').strip()
+                if not content:
+                    continue
+                # Deduplicate: skip verbatim repeated posts
+                if action_type == 'CREATE_POST':
+                    content_key = content[:200].lower()  # Compare first 200 chars
+                    if content_key in _seen_post_content:
+                        continue
+                    _seen_post_content.add(content_key)
             if action_logger:
                 action_logger.log_action(
                     round_num=round_num + 1,
                     agent_id=action_data['agent_id'],
                     agent_name=action_data['agent_name'],
-                    action_type=action_data['action_type'],
-                    action_args=action_data['action_args']
+                    action_type=action_type,
+                    action_args=action_args
                 )
                 total_actions += 1
                 round_action_count += 1

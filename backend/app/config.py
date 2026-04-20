@@ -27,10 +27,38 @@ class Config:
     # JSON配置 - 禁用ASCII转义，让中文直接显示（而不是 \uXXXX 格式）
     JSON_AS_ASCII = False
 
-    # LLM配置（统一使用OpenAI格式）
-    LLM_API_KEY = os.environ.get('LLM_API_KEY')
-    LLM_BASE_URL = os.environ.get('LLM_BASE_URL', 'http://localhost:11434/v1')
-    LLM_MODEL_NAME = os.environ.get('LLM_MODEL_NAME', 'qwen2.5:32b')
+    # ── LLM Provider Configuration ──
+    # LLM_PROVIDER selects the backend: "ollama" (default) or "groq"
+    # Provider-specific env vars are resolved into unified LLM_API_KEY / LLM_BASE_URL / LLM_MODEL_NAME
+    LLM_PROVIDER = os.environ.get('LLM_PROVIDER', 'ollama').lower()
+
+    @staticmethod
+    def _resolve_llm_config():
+        """Resolve provider-specific env vars into unified LLM config."""
+        provider = os.environ.get('LLM_PROVIDER', 'ollama').lower()
+
+        if provider == 'groq':
+            api_key = os.environ.get('GROQ_API_KEY', '')
+            base_url = 'https://api.groq.com/openai/v1'
+            model = os.environ.get('GROQ_MODEL', 'llama-3.3-70b-versatile')
+        else:
+            # Default: ollama (or any OpenAI-compatible provider)
+            api_key = os.environ.get('LLM_API_KEY', 'ollama')
+            base_url = os.environ.get('LLM_BASE_URL', 'http://localhost:11434/v1')
+            model = os.environ.get('LLM_MODEL_NAME', 'qwen3:8b')
+
+        return api_key, base_url, model
+
+    LLM_API_KEY, LLM_BASE_URL, LLM_MODEL_NAME = _resolve_llm_config.__func__()
+
+    # Propagate resolved values into env so CAMEL-AI / simulation scripts inherit them
+    os.environ.setdefault('LLM_API_KEY', LLM_API_KEY or '')
+    os.environ.setdefault('LLM_BASE_URL', LLM_BASE_URL or '')
+    os.environ.setdefault('LLM_MODEL_NAME', LLM_MODEL_NAME or '')
+    if LLM_API_KEY:
+        os.environ.setdefault('OPENAI_API_KEY', LLM_API_KEY)
+    if LLM_BASE_URL:
+        os.environ.setdefault('OPENAI_API_BASE_URL', LLM_BASE_URL)
 
     # Neo4j配置
     NEO4J_URI = os.environ.get('NEO4J_URI', 'bolt://localhost:7687')
@@ -73,7 +101,10 @@ class Config:
     def validate(cls):
         """验证必要配置"""
         errors = []
-        if not cls.LLM_API_KEY:
+        if cls.LLM_PROVIDER == 'groq':
+            if not os.environ.get('GROQ_API_KEY'):
+                errors.append("GROQ_API_KEY is required when LLM_PROVIDER=groq (get one at https://console.groq.com)")
+        elif not cls.LLM_API_KEY:
             errors.append("LLM_API_KEY 未配置 (设置为任意非空值, 例如 'ollama')")
         if not cls.NEO4J_URI:
             errors.append("NEO4J_URI 未配置")

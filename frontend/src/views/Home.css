@@ -1,17 +1,42 @@
 /* Home.css — extracted from Home.vue to bypass Vite SFC style bug */
 
-.home-container {
-  min-height: 100vh;
-  background: #FFFFFF;
-  font-family: 'Space Grotesk', 'Noto Sans SC', system-ui, sans-serif;
-  color: #000000;
+/* ─── Design tokens ───────────────────────────────────────────────── */
+:root {
+  --bg-base:         #FAFAF8;
+  --bg-subtle:       #F4F2EF;
+  --bg-muted:        #EDE9E4;
+  --border-strong:   #C8C0B8;
+  --border-default:  #DDD8D0;
+  --border-subtle:   #EAE6E0;
+  --text-1:          #1A1816;
+  --text-2:          #6B6560;
+  --text-3:          #9C948A;
+  --text-4:          #B0A89E;
+  --nav-bg:          #111110;
+  --nav-border:      #2A2826;
+  --nav-text:        #F5F0EB;
+  --nav-muted:       #8C8580;
+  --accent:          #C9501A;
+  --accent-hover:    #B84416;
+  --accent-subtle:   #F5E8E0;
+  --status-ready:    #4A7A62;
+  --status-running:  #B87A3A;
+  --status-done:     #3A6A8A;
 }
 
-/* Top Navigation */
+/* ─── Page shell ──────────────────────────────────────────────────── */
+.home-container {
+  min-height: 100vh;
+  background: var(--bg-base);
+  font-family: 'Space Grotesk', 'Noto Sans SC', system-ui, sans-serif;
+  color: var(--text-1);
+}
+
+/* ─── Navbar ──────────────────────────────────────────────────────── */
 .navbar {
-  height: 60px;
-  background: #000000;
-  color: #FFFFFF;
+  height: 56px;
+  background: var(--nav-bg);
+  color: var(--nav-text);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -20,9 +45,22 @@
 
 .nav-brand {
   font-family: 'JetBrains Mono', monospace;
-  font-weight: 800;
-  letter-spacing: 1px;
-  font-size: 1.2rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  font-size: 0.85rem;
+  color: var(--nav-text);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.nav-brand-version {
+  font-size: 0.65rem;
+  font-weight: 400;
+  color: var(--accent);
+  letter-spacing: 0.06em;
+  border: 1px solid rgba(201, 80, 26, 0.3);
+  padding: 2px 6px;
 }
 
 .nav-links {
@@ -31,295 +69,131 @@
 }
 
 .github-link {
-  color: #FFFFFF;
+  color: var(--nav-muted);
   text-decoration: none;
   font-family: 'JetBrains Mono', monospace;
-  font-size: 0.9rem;
-  font-weight: 500;
+  font-size: 0.75rem;
+  font-weight: 400;
   display: flex;
   align-items: center;
-  gap: 8px;
-  transition: opacity 0.2s;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid transparent;
+  letter-spacing: 0.04em;
+  transition: color 150ms ease, border-color 150ms ease;
 }
 
 .github-link:hover {
-  opacity: 0.8;
+  color: var(--nav-text);
+  border-color: var(--nav-border);
 }
 
-.arrow {
-  font-family: sans-serif;
-}
-
-/* Main Content */
+/* ─── Main content ────────────────────────────────────────────────── */
 .main-content {
   max-width: 1400px;
   margin: 0 auto;
-  padding: 60px 40px;
 }
 
-/* Hero Section */
-.hero-section {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 80px;
-  position: relative;
+/* ─── Viewport centering wrapper ──────────────────────────────────── */
+.viewport-center {
+  padding: 8vh 40px 40px;
 }
 
-.hero-left {
-  flex: 1;
-  padding-right: 60px;
-}
-
-.tag-row {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-  margin-bottom: 25px;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.8rem;
-}
-
-.orange-tag {
-  background: #FF4500;
-  color: #FFFFFF;
-  padding: 4px 10px;
-  font-weight: 700;
-  letter-spacing: 1px;
-  font-size: 0.75rem;
-}
-
-.version-text {
-  color: #999;
-  font-weight: 500;
-  letter-spacing: 0.5px;
-}
-
-.main-title {
-  font-size: 4.5rem;
-  line-height: 1.2;
-  font-weight: 500;
-  margin: 0 0 40px 0;
-  letter-spacing: -2px;
-  color: #000000;
-}
-
-.gradient-text {
-  background: linear-gradient(90deg, #000000 0%, #444444 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  display: inline-block;
-}
-
-.hero-desc {
-  font-size: 1.05rem;
-  line-height: 1.8;
-  color: #666666;
-  max-width: 640px;
-  margin-bottom: 50px;
-  font-weight: 400;
-  text-align: justify;
-}
-
-.hero-desc p {
-  margin-bottom: 1.5rem;
-}
-
-.highlight-bold {
-  color: #000000;
-  font-weight: 700;
-}
-
-.highlight-orange {
-  color: #FF4500;
-  font-weight: 700;
-  font-family: 'JetBrains Mono', monospace;
-}
-
-.highlight-code {
-  background: rgba(0, 0, 0, 0.05);
-  padding: 2px 6px;
-  border-radius: 2px;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.9em;
-  color: #000000;
-  font-weight: 600;
-}
-
-.slogan-text {
-  font-size: 1.2rem;
-  font-weight: 520;
-  color: #000000;
-  letter-spacing: 1px;
-  border-left: 3px solid #FF4500;
-  padding-left: 15px;
-  margin-top: 20px;
-}
-
-.blinking-cursor {
-  color: #FF4500;
-  animation: blink 1s step-end infinite;
-  font-weight: 700;
-}
-
-@keyframes blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0; }
-}
-
-.decoration-square {
-  width: 16px;
-  height: 16px;
-  background: #FF4500;
-}
-
-.hero-right {
-  flex: 0.8;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  align-items: flex-end;
-}
-
-.logo-container {
-  width: 100%;
-  display: flex;
-  justify-content: flex-end;
-  padding-right: 40px;
-}
-
-.hero-logo {
-  max-width: 500px;
-  width: 100%;
-}
-
-.scroll-down-btn {
-  width: 40px;
-  height: 40px;
-  border: 1px solid #E5E5E5;
-  background: transparent;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: #FF4500;
-  font-size: 1.2rem;
-  transition: all 0.2s;
-}
-
-.scroll-down-btn:hover {
-  border-color: #FF4500;
-}
-
-/* Dashboard Two-Column Layout */
+/* ─── Dashboard two-column layout ────────────────────────────────── */
 .dashboard-section {
   display: flex;
-  gap: 60px;
-  border-top: 1px solid #E5E5E5;
-  padding-top: 60px;
+  gap: 52px;
   align-items: flex-start;
+  border-top: none;
 }
 
-.dashboard-section .left-panel,
-.dashboard-section .right-panel {
-  display: flex;
-  flex-direction: column;
-}
-
-/* Left Panel */
+/* ─── Left panel ──────────────────────────────────────────────────── */
 .left-panel {
   flex: 0.8;
+  display: flex;
+  flex-direction: column;
 }
 
 .panel-header {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 0.8rem;
-  color: #999;
+  font-size: 0.7rem;
+  color: var(--text-3);
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 20px;
-}
-
-.status-dot {
-  color: #FF4500;
-  font-size: 0.8rem;
+  gap: 6px;
+  margin-bottom: 12px;
+  letter-spacing: 0.05em;
 }
 
 .section-title {
-  font-size: 2rem;
-  font-weight: 520;
-  margin: 0 0 15px 0;
+  font-size: 1.8rem;
+  font-weight: 500;
+  margin: 0 0 10px 0;
+  letter-spacing: -0.02em;
+  color: var(--text-1);
 }
 
 .section-desc {
-  color: #666666;
-  margin-bottom: 25px;
-  line-height: 1.6;
+  color: var(--text-2);
+  margin-bottom: 28px;
+  line-height: 1.65;
+  font-size: 0.9rem;
 }
 
-.metrics-row {
-  display: flex;
-  gap: 20px;
-  margin-bottom: 15px;
-}
-
-.metric-card {
-  border: 1px solid #E5E5E5;
-  padding: 20px 30px;
-  min-width: 150px;
-}
-
-.metric-value {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 1.8rem;
-  font-weight: 520;
-  margin-bottom: 5px;
-}
-
-.metric-label {
-  font-size: 0.85rem;
-  color: #999;
-}
-
-/* Workflow Steps */
+/* ─── Workflow steps ──────────────────────────────────────────────── */
 .steps-container {
-  border: 1px solid #E5E5E5;
-  padding: 30px;
+  background: var(--bg-subtle);
+  padding: 24px;
   position: relative;
 }
 
 .steps-header {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 0.8rem;
-  color: #999;
-  margin-bottom: 25px;
+  font-size: 0.7rem;
+  color: var(--text-3);
+  margin-bottom: 20px;
   display: flex;
   align-items: center;
   gap: 8px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .diamond-icon {
-  font-size: 1.2rem;
+  font-size: 1rem;
   line-height: 1;
 }
 
 .workflow-list {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
 }
 
 .workflow-item {
   display: flex;
   align-items: flex-start;
-  gap: 20px;
+  gap: 16px;
+}
+
+.workflow-item:not(:last-child) .step-num::after {
+  content: '';
+  position: absolute;
+  left: 9px;
+  top: 18px;
+  width: 1px;
+  height: calc(100% + 1px);
+  background: var(--border-subtle);
 }
 
 .step-num {
   font-family: 'JetBrains Mono', monospace;
-  font-weight: 700;
-  color: #000000;
-  opacity: 0.3;
+  font-weight: 600;
+  color: var(--text-1);
+  font-size: 0.7rem;
+  padding-top: 2px;
+  min-width: 20px;
+  position: relative;
 }
 
 .step-info {
@@ -327,62 +201,65 @@
 }
 
 .step-title {
-  font-weight: 520;
-  font-size: 1rem;
-  margin-bottom: 4px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  margin-bottom: 2px;
+  color: var(--text-1);
 }
 
 .step-desc {
-  font-size: 0.85rem;
-  color: #666666;
+  font-size: 0.8rem;
+  color: var(--text-3);
+  line-height: 1.5;
 }
 
-/* Right Interactive Console */
+/* ─── Right console panel ─────────────────────────────────────────── */
 .right-panel {
   flex: 1.2;
+  display: flex;
+  flex-direction: column;
 }
 
 .console-box {
-  border: 1px solid #CCC;
-  padding: 8px;
+  border: 1px solid var(--border-strong);
+  background: #FFFFFF;
 }
 
 .console-section {
-  padding: 20px;
-}
-
-.console-section.btn-section {
-  padding-top: 0;
+  padding: 20px 20px 16px;
 }
 
 .console-header {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 15px;
+  margin-bottom: 12px;
   font-family: 'JetBrains Mono', monospace;
-  font-size: 0.75rem;
-  color: #666;
+  font-size: 0.7rem;
+  color: var(--text-3);
+  letter-spacing: 0.04em;
 }
 
+/* ─── Upload zone ─────────────────────────────────────────────────── */
 .upload-zone {
-  border: 1px dashed #CCC;
-  height: 200px;
+  border: 1.5px dashed var(--border-strong);
+  height: 160px;
   overflow-y: auto;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.3s;
-  background: #FAFAFA;
-}
-
-.upload-zone.has-files {
-  align-items: flex-start;
+  background: var(--bg-subtle);
+  transition: border-color 150ms ease, background 150ms ease;
 }
 
 .upload-zone:hover {
-  background: #F0F0F0;
-  border-color: #999;
+  background: var(--bg-muted);
+  border-color: var(--text-3);
+}
+
+.upload-zone.is-drag-over {
+  border: 1.5px solid var(--accent);
+  background: var(--accent-subtle);
 }
 
 .upload-placeholder {
@@ -390,177 +267,175 @@
 }
 
 .upload-icon {
-  width: 40px;
-  height: 40px;
-  border: 1px solid #DDD;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0 auto 15px;
-  color: #999;
+  margin: 0 auto 12px;
+  color: var(--text-3);
+  background: #fff;
 }
 
 .upload-title {
   font-weight: 500;
-  font-size: 0.9rem;
-  margin-bottom: 5px;
+  font-size: 0.875rem;
+  margin-bottom: 4px;
+  color: var(--text-1);
 }
 
 .upload-hint {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 0.75rem;
-  color: #999;
+  font-size: 0.7rem;
+  color: var(--text-4);
+  letter-spacing: 0.04em;
 }
 
 .file-list {
   width: 100%;
-  padding: 15px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .file-item {
   display: flex;
   align-items: center;
   background: #FFFFFF;
-  padding: 8px 12px;
-  border: 1px solid #EEE;
+  padding: 7px 10px;
+  border: 1px solid var(--border-subtle);
   font-family: 'JetBrains Mono', monospace;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
 }
 
 .file-name {
   flex: 1;
   margin: 0 10px;
+  color: var(--text-1);
 }
 
 .remove-btn {
   background: none;
   border: none;
   cursor: pointer;
-  font-size: 1.2rem;
-  color: #999;
+  font-size: 1.1rem;
+  color: var(--text-3);
+  transition: color 150ms ease;
 }
 
+.remove-btn:hover {
+  color: var(--accent);
+}
+
+/* ─── Console divider ─────────────────────────────────────────────── */
 .console-divider {
   display: flex;
   align-items: center;
-  margin: 10px 0;
-}
-
-.console-divider::before,
-.console-divider::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: #EEE;
+  border-top: 1px solid var(--border-subtle);
+  padding: 8px 20px;
+  margin: 0;
 }
 
 .console-divider span {
-  padding: 0 15px;
   font-family: 'JetBrains Mono', monospace;
-  font-size: 0.7rem;
-  color: #BBB;
-  letter-spacing: 1px;
+  font-size: 0.65rem;
+  color: var(--text-4);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
+/* ─── Prompt textarea ─────────────────────────────────────────────── */
 .input-wrapper {
   position: relative;
-  border: 1px solid #DDD;
-  background: #FAFAFA;
+  border: 1px solid var(--border-default);
+  background: var(--bg-subtle);
 }
 
 .code-input {
   width: 100%;
   border: none;
   background: transparent;
-  padding: 20px;
+  padding: 16px;
   font-family: 'JetBrains Mono', monospace;
-  font-size: 0.9rem;
-  line-height: 1.6;
-  resize: vertical;
+  font-size: 0.875rem;
+  line-height: 1.7;
+  resize: none;
   outline: none;
-  min-height: 150px;
+  min-height: 140px;
+  color: var(--text-1);
+  caret-color: var(--accent);
+}
+
+.code-input::placeholder {
+  color: var(--text-4);
 }
 
 .model-badge {
   position: absolute;
   bottom: 10px;
-  right: 15px;
+  right: 12px;
   font-family: 'JetBrains Mono', monospace;
-  font-size: 0.7rem;
-  color: #AAA;
+  font-size: 0.65rem;
+  color: var(--text-4);
+  background: var(--bg-muted);
+  padding: 2px 6px;
+  letter-spacing: 0.03em;
+}
+
+/* ─── Start Engine button ─────────────────────────────────────────── */
+.btn-section {
+  padding: 0 16px 16px;
 }
 
 .start-engine-btn {
   width: 100%;
-  background: #000000;
-  color: #FFFFFF;
-  border: none;
-  padding: 20px;
+  background: var(--text-1);
+  color: var(--nav-text);
+  border: 1px solid #2A2826;
+  padding: 18px 24px;
   font-family: 'JetBrains Mono', monospace;
-  font-weight: 700;
-  font-size: 1.1rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  letter-spacing: 0.08em;
   display: flex;
   justify-content: space-between;
   align-items: center;
   cursor: pointer;
-  transition: all 0.3s ease;
-  letter-spacing: 1px;
-  position: relative;
-  overflow: hidden;
-}
-
-/* Clickable state (not disabled) */
-.start-engine-btn:not(:disabled) {
-  background: #000000;
-  border: 1px solid #000000;
-  animation: pulse-border 2s infinite;
+  transition: background 150ms ease, border-color 150ms ease;
 }
 
 .start-engine-btn:hover:not(:disabled) {
-  background: #FF4500;
-  border-color: #FF4500;
-  transform: translateY(-2px);
+  background: var(--accent);
+  border-color: var(--accent);
 }
 
 .start-engine-btn:active:not(:disabled) {
-  transform: translateY(0);
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
 }
 
 .start-engine-btn:disabled {
-  background: #E5E5E5;
-  color: #999;
+  background: var(--bg-muted);
+  color: var(--text-4);
+  border-color: var(--border-subtle);
   cursor: not-allowed;
-  transform: none;
-  border: 1px solid #E5E5E5;
 }
 
-/* Pulse animation for border */
-@keyframes pulse-border {
-  0% { box-shadow: 0 0 0 0 rgba(0, 0, 0, 0.2); }
-  70% { box-shadow: 0 0 0 6px rgba(0, 0, 0, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(0, 0, 0, 0); }
-}
-
-/* Responsive */
+/* ─── Responsive ──────────────────────────────────────────────────── */
 @media (max-width: 1024px) {
   .dashboard-section {
     flex-direction: column;
   }
+}
 
-  .hero-section {
-    flex-direction: column;
+@media (max-width: 640px) {
+  .main-content {
+    padding: 24px 20px 40px;
   }
-
-  .hero-left {
-    padding-right: 0;
-    margin-bottom: 40px;
-  }
-
-  .hero-logo {
-    max-width: 200px;
-    margin-bottom: 20px;
+  .navbar {
+    padding: 0 20px;
   }
 }

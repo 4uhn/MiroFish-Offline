@@ -2,7 +2,7 @@
 .DS_Store
 Thumbs.db
 
-# 环境变量（保护敏感信息）
+# env files
 .env
 .env.local
 .env.*.local
@@ -36,26 +36,22 @@ yarn-error.log*
 *.swp
 *.swo
 
-# 测试
 .pytest_cache/
 .coverage
 htmlcov/
 
-# Cursor
 .cursor/
 .claude/
+.playwright-mcp/
 
-# 文档与测试程序
 mydoc/
 mytest/
+test-docs/
 
-# 日志文件
 backend/logs/
 *.log
 
-# 上传文件
 backend/uploads/
 
-# Docker 数据
 data/backend/venv311/
 backend/venv311/
